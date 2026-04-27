@@ -1,19 +1,37 @@
 [Unit]
-Description=Perf CPU Profiler BlackBox (7x24)
+Description=Linux Continuous CPU Profiler Blackbox
+Documentation=https://github.com/121209/cpu-prefilling-sill
 After=network.target
 
 [Service]
-Type=forking
-ExecStart=/usr/local/bin/perf-profiler-collector.sh
+Type=simple
 User=root
+Group=root
+
+# Centralized config
 EnvironmentFile=-/etc/perf-profiler.conf
+
+# Runtime preparation
+ExecStartPre=/bin/mkdir -p /var/cache/perf-profiler
+ExecStartPre=/bin/sh -c 'sysctl -w kernel.perf_event_paranoid=1 || true'
+
+# Main collector
+ExecStart=/usr/local/bin/perf-profiler-collector.sh
+
+# Production reliability
 Restart=always
 RestartSec=10
-LimitNOFILE=65536
+
+# Resource guardrails
 CPUQuota=5%
 MemoryMax=256M
-ReadWritePaths=/var/cache/perf-profiler
-ExecStartPre=/bin/sh -c 'echo -1 > /proc/sys/kernel/perf_event_paranoid || true'
+LimitNOFILE=65536
+
+# Hardening
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
 
 [Install]
 WantedBy=multi-user.target

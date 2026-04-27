@@ -1,45 +1,88 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "=== Installing Perf Profiler Skill ==="
+echo "=== Installing Linux Continuous CPU Profiler Skill ==="
 
-# 安装系统依赖
 apt-get update
-apt-get install -y linux-tools-common linux-tools-generic linux-tools-$(uname -r) zstd git stress || true
-if ! command -v perf &>/dev/null; then
-    PERF=$(find /usr/lib/linux-tools -name perf -type f | head -1)
-    [ -n "$PERF" ] && ln -sf "$PERF" /usr/local/bin/perf
+
+apt-get install -y \
+  git \
+  curl \
+  ca-certificates \
+  stress \
+  zstd \
+  linux-tools-common \
+  linux-tools-generic || true
+
+apt-get install -y "linux-tools-$(uname -r)" || true
+
+# Resolve perf binary
+if ! command -v perf >/dev/null 2>&1; then
+  PERF_BIN="$(find /usr/lib/linux-tools -name perf -type f 2>/dev/null | head -n 1 || true)"
+  if [ -n "$PERF_BIN" ]; then
+    ln -sf "$PERF_BIN" /usr/local/bin/perf
+  fi
 fi
 
-# 安装 FlameGraph
+# For WSL2 or environments where /usr/bin/perf wrapper is broken
+if [ ! -x /usr/local/bin/perf ]; then
+  PERF_BIN="$(find /usr/lib/linux-tools -name perf -type f 2>/dev/null | head -n 1 || true)"
+  if [ -n "$PERF_BIN" ]; then
+    ln -sf "$PERF_BIN" /usr/local/bin/perf
+  fi
+fi
+
+if [ ! -x /usr/local/bin/perf ] && ! command -v perf >/dev/null 2>&1; then
+  echo "ERROR: perf is not available."
+  echo "On WSL2, perf may require a matching WSL2 kernel perf build."
+  echo "For production validation, native Ubuntu Linux is recommended."
+  exit 1
+fi
+
+# Install FlameGraph
 if [ ! -d /opt/FlameGraph ]; then
-    git clone --depth=1 https://github.com/brendangregg/FlameGraph.git /opt/FlameGraph
+  git clone --depth=1 https://github.com/brendangregg/FlameGraph.git /opt/FlameGraph
 fi
-ln -sf /opt/FlameGraph/stackcollapse-perf.pl /usr/local/bin/
-ln -sf /opt/FlameGraph/flamegraph.pl /usr/local/bin/
 
-# 复制脚本和配置
-cp perf-profiler-collector.sh /usr/local/bin/
-cp perf2flame.sh /usr/local/bin/
-chmod +x /usr/local/bin/perf-profiler-collector.sh /usr/local/bin/perf2flame.sh
-cp perf-profiler.conf /etc/
+ln -sf /opt/FlameGraph/stackcollapse-perf.pl /usr/local/bin/stackcollapse-perf.pl
+ln -sf /opt/FlameGraph/flamegraph.pl /usr/local/bin/flamegraph.pl
+chmod +x /opt/FlameGraph/*.pl
 
-# 建立数据目录
+# Install commands
+cp perf-profiler-collector.sh /usr/local/bin/perf-profiler-collector.sh
+cp perf2flame.sh /usr/local/bin/perf2flame.sh
+chmod +x /usr/local/bin/perf-profiler-collector.sh
+chmod +x /usr/local/bin/perf2flame.sh
+
+# Install config
+cp perf-profiler.conf /etc/perf-profiler.conf
+
+# Data directory
 mkdir -p /var/cache/perf-profiler
 
-# 内核参数
-sysctl -w kernel.perf_event_paranoid=-1
-echo "kernel.perf_event_paranoid = -1" > /etc/sysctl.d/99-perf-profiler.conf
+# perf permission
+sysctl -w kernel.perf_event_paranoid=1 || true
+echo "kernel.perf_event_paranoid = 1" > /etc/sysctl.d/99-perf-profiler.conf || true
 
-# 安装 systemd 服务（若可用）
-if command -v systemctl &>/dev/null; then
-    cp perf-profiler.service /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable perf-profiler.service
-    systemctl start perf-profiler.service
-    echo "=== Service started via systemd ==="
+# Install systemd service
+cp perf-profiler.service /etc/systemd/system/perf-profiler.service
+
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload
+  systemctl enable perf-profiler.service || true
+
+  echo
+  echo "Systemd service installed:"
+  echo "  sudo systemctl start perf-profiler"
+  echo "  sudo systemctl status perf-profiler"
+  echo "  journalctl -u perf-profiler -f"
 else
-    echo "systemd not found, start manually:"
-    echo "  nohup /usr/local/bin/perf-profiler-collector.sh &"
+  echo
+  echo "systemd is not available. Start manually:"
+  echo "  sudo /usr/local/bin/perf-profiler-collector.sh"
 fi
-echo "=== Install complete. Use 'perf2flame.sh \"YYYY-MM-DD HH:MM:SS\"' to generate flamegraph. ==="
+
+echo
+echo "=== Install complete ==="
+echo "Generate flamegraph:"
+echo "  sudo perf2flame.sh \"YYYY-MM-DD HH:MM:SS\" ./flame.svg"
