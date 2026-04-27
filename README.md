@@ -10,5 +10,56 @@
 - **时间点查询**：根据输入时间，匹配最近且 ≤ 目标时间的切片  
 - **火焰图生成**：使用 Brendan Gregg 的 FlameGraph 工具链输出 SVG  
 - **生产可靠性**：由 systemd 管理，自动重启、CPU 配额 ≤ 5%、内存限制、配置集中管理
-
+## 文件说明
+README.md                     项目说明文档
+install.sh                    安装脚本
+uninstall.sh                  卸载脚本
+perf-profiler-collector.sh    持续 perf 采集器
+perf2flame.sh                 时间点查询与火焰图生成工具
+perf-profiler.conf            配置文件
+perf-profiler.service         systemd 后台服务文件
+test.sh                       基础测试
+test-e2e.sh                   端到端测试
+test-results.txt              基础测试结果
+test-e2e-results.txt          端到端测试结果
+flame-e2e-result.svg          端到端测试生成的火焰图
+## 使用说明
+### 1、安装 perf
+sudo apt update
+sudo apt install -y linux-tools-common linux-tools-generic linux-tools-$(uname -r)
+#### 1.1 WSL2 环境
+WSL2 中出现：
+WARNING: perf not found for kernel x.x.x-microsoft-standard-WSL2
+可以查找已有 perf：
+find /usr/lib/linux-tools -name perf 2>/dev/null
+如果找到类似：
+/usr/lib/linux-tools/6.8.0-110-generic/perf
+可以创建软链接：
+sudo ln -sf $(find /usr/lib/linux-tools -name perf | head -n 1) /usr/local/bin/perf
+验证：
+perf --version
+### 2、安装 FlameGraph
+sudo git clone --depth=1 https://github.com/brendangregg/FlameGraph.git /opt/FlameGraph
+sudo ln -sf /opt/FlameGraph/stackcollapse-perf.pl /usr/local/bin/stackcollapse-perf.pl
+sudo ln -sf /opt/FlameGraph/flamegraph.pl /usr/local/bin/flamegraph.pl
+sudo chmod +x /opt/FlameGraph/*.pl
+验证：
+stackcollapse-perf.pl --help | head
+flamegraph.pl --help | head
+### 3、一键安装
+sudo ./install.sh
+### 4、使用方式：systemd 生产模式
+启动服务：
+sudo systemctl start perf-profiler
+查看状态：
+sudo systemctl status perf-profiler --no-pager
+查看日志：
+sudo journalctl -u perf-profiler -n 30 --no-pager
+设置开机自启：
+sudo systemctl enable perf-profiler
+停止服务：
+sudo systemctl stop perf-profiler
+查看是否生成切片：
+sleep 30
+sudo ls -lh /var/cache/perf-profiler
 
