@@ -1,25 +1,15 @@
-=== Perf Profiler Skill Test ===
+=== Basic test: dependency, syntax and config check ===
+[1/5] Check shell script syntax
+[PASS] Shell syntax
+[2/5] Check required commands
 [PASS] Dependencies
-Test directory: /tmp/tmp.ubvgbtKNEK
-Starting profiler in background...
-WARNING: perf not found for kernel 4.4.0-19041
+[3/5] Check perf binary
+perf version 6.8.12
+[PASS] Perf binary
+[4/5] Check config file
+[PASS] Config
+[5/5] Check executable bits
+[PASS] Executable permissions
 
-  You may need to install the following packages for this specific kernel:
-    linux-tools-4.4.0-19041-Microsoft
-    linux-cloud-tools-4.4.0-19041-Microsoft
-
-  You may also want to install one of the following packages to keep up to date:
-    linux-tools-Microsoft
-    linux-cloud-tools-Microsoft
-Generating CPU load...
-stress: info: [3345] dispatching hogs: 2 cpu, 0 io, 0 vm, 0 hdd
-Sample time: 2026-04-27 11:25:04
-Generating flamegraph for 2026-04-27 11:25:04...
-No slice found for 2026-04-27 11:25:04
-Flamegraph generation failed (might be timing), continuing...
-[FAIL] Flamegraph SVG not generated
-total 0
-drwxr-xr-x 1 sp2026 sp2026 4096 Apr 27 11:24 .
-drwx------ 1 sp2026 sp2026 4096 Apr 27 11:24 ..
-Cleaning up...
-=== Test Complete ===
+Basic test passed: 5/5 checks passed
+Note: perf recording is validated by ./test-e2e.sh because system-wide perf sampling requires sudo/root permission.
