@@ -1,0 +1,19 @@
+[Unit]
+Description=Perf CPU Profiler BlackBox (7x24)
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/perf-profiler-collector.sh
+User=root
+EnvironmentFile=-/etc/perf-profiler.conf
+Restart=always
+RestartSec=10
+LimitNOFILE=65536
+CPUQuota=5%
+MemoryMax=256M
+ReadWritePaths=/var/cache/perf-profiler
+ExecStartPre=/bin/sh -c 'echo -1 > /proc/sys/kernel/perf_event_paranoid || true'
+
+[Install]
+WantedBy=multi-user.target
